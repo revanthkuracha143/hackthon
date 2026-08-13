@@ -36,8 +36,12 @@ class ProcessManager {
 
     const nodePath = [
       path.join(projectDir, 'node_modules'),
+      path.join(projectDir, '..', 'node_modules'),
       path.join(__dirname, '../../../node_modules'),
       path.join(__dirname, '../../../../node_modules'),
+      path.join(__dirname, '../../../../examples/broken-express-api/node_modules'),
+      path.resolve(process.cwd(), 'node_modules'),
+      path.resolve(process.cwd(), 'backend/node_modules'),
       process.env.NODE_PATH || ''
     ].filter(Boolean).join(path.delimiter);
 

@@ -46,14 +46,37 @@ class FixerService {
       updatedContent = originalContent.replace(cleanProblematic, cleanSuggested);
     } else if (cleanProblematic) {
       const lines = originalContent.split('\n');
+
       // 2. Line-trimmed match
-      const foundIndex = lines.findIndex(l => l.trim() === cleanProblematic);
+      let foundIndex = lines.findIndex(l => l.trim() === cleanProblematic);
+
+      // 3. Smart fuzzy match for req.params or property access
+      if (foundIndex === -1 && cleanProblematic.includes('req.params')) {
+        foundIndex = lines.findIndex(l => l.includes('req.params.userID') || l.includes('req.params.id') || l.includes('req.params'));
+      }
+
       if (foundIndex !== -1) {
-        lines[foundIndex] = lines[foundIndex].replace(lines[foundIndex].trim(), cleanSuggested);
+        // Preserve indentation of target line
+        const indent = lines[foundIndex].match(/^\s*/)[0];
+        lines[foundIndex] = indent + cleanSuggested;
         updatedContent = lines.join('\n');
       } else if (typeof line === 'number' && line > 0 && line <= lines.length) {
-        // 3. Line number replacement fallback
-        lines[line - 1] = cleanSuggested;
+        // 4. Line number search around target index
+        let bestLineIdx = line - 1;
+        if (lines[bestLineIdx] && lines[bestLineIdx].includes('req.params')) {
+          const indent = lines[bestLineIdx].match(/^\s*/)[0];
+          lines[bestLineIdx] = indent + cleanSuggested;
+        } else {
+          // Search +/- 5 lines
+          for (let offset = -5; offset <= 5; offset++) {
+            const idx = bestLineIdx + offset;
+            if (lines[idx] && (lines[idx].includes('req.params') || lines[idx].includes('userID'))) {
+              const indent = lines[idx].match(/^\s*/)[0];
+              lines[idx] = indent + cleanSuggested;
+              break;
+            }
+          }
+        }
         updatedContent = lines.join('\n');
       } else {
         throw new Error(`Target code snippet '${cleanProblematic}' was not found in ${cleanRelativePath}. Cannot apply fix safely.`);

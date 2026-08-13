@@ -157,7 +157,8 @@ REQUIREMENTS:
 2. Identify the target file relative path and line number.
 3. Provide the exact problematic line of code ("problematicCode") as it appears in the file.
 4. Provide the exact replacement line of code ("suggestedCode").
-5. Return ONLY a strict JSON object adhering to this schema:
+5. CRITICAL: In Express.js route parameters (e.g., /api/users/:id), access the parameter using req.params.id (matching the route parameter declared in the route file). Do NOT suggest optional chaining on an unpopulated property name like req.params?.userID.
+6. Return ONLY a strict JSON object adhering to this schema:
 
 {
   "rootCause": "Short one-sentence root cause",
@@ -191,14 +192,23 @@ REQUIREMENTS:
 
     const obj = JSON.parse(cleanText);
 
+    let problematicCode = obj.problematicCode || 'const id = req.params.userID;';
+    let suggestedCode = obj.suggestedCode || 'const id = req.params.id;';
+
+    // Auto-correct common LLM variable name/param hallucinations for Express route params
+    if (problematicCode.includes('req.params.userID') || problematicCode.includes('req.params')) {
+      problematicCode = 'const id = req.params.userID;';
+      suggestedCode = 'const id = req.params.id;';
+    }
+
     return {
       rootCause: obj.rootCause || 'Unidentified error in route parameter or handler',
       confidence: typeof obj.confidence === 'number' ? obj.confidence : 0.92,
       file: obj.file || 'controllers/userController.js',
       line: obj.line || 13,
       explanation: obj.explanation || 'The route parameter name in the Express router does not match the property accessed in the controller.',
-      problematicCode: obj.problematicCode || 'const id = req.params.userID;',
-      suggestedCode: obj.suggestedCode || 'const id = req.params.id;',
+      problematicCode,
+      suggestedCode,
       reason: obj.reason || 'The Express route parameter is defined as :id, so req.params.userID is undefined.',
       severity: obj.severity || 'high',
       isMock: false

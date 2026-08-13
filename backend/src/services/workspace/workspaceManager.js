@@ -54,6 +54,9 @@ class WorkspaceManager {
     // Create identical patched copy
     this.copyDirectory(effectiveOriginalDir, patchedDir);
 
+    this.linkNodeModules(effectiveOriginalDir, effectiveOriginalDir);
+    this.linkNodeModules(effectiveOriginalDir, patchedDir);
+
     return {
       id,
       workspaceDir,
@@ -75,12 +78,40 @@ class WorkspaceManager {
     this.copyDirectory(sourceDir, originalDir);
     this.copyDirectory(originalDir, patchedDir);
 
+    this.linkNodeModules(sourceDir, originalDir);
+    this.linkNodeModules(sourceDir, patchedDir);
+
     return {
       id,
       workspaceDir,
       originalDir,
       patchedDir
     };
+  }
+
+  /**
+   * Symlinks node_modules into target directory if missing
+   */
+  static linkNodeModules(sourceDir, targetDir) {
+    const candidatePaths = [
+      path.join(sourceDir, 'node_modules'),
+      path.join(__dirname, '../../../node_modules'),
+      path.join(__dirname, '../../../../node_modules'),
+      path.join(__dirname, '../../../../examples/broken-express-api/node_modules'),
+      path.resolve(process.cwd(), 'node_modules'),
+      path.resolve(process.cwd(), 'backend/node_modules')
+    ];
+
+    const foundNodeModules = candidatePaths.find(p => fs.existsSync(p));
+    const targetNodeModules = path.join(targetDir, 'node_modules');
+
+    if (foundNodeModules && !fs.existsSync(targetNodeModules)) {
+      try {
+        fs.symlinkSync(foundNodeModules, targetNodeModules, 'junction');
+      } catch (err) {
+        // Ignored fallback
+      }
+    }
   }
 
   /**
