@@ -1,0 +1,13 @@
+{
+  "name": "broken-express-api",
+  "version": "1.0.0",
+  "description": "Sample broken Express API for API Doctor demo",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "cors": "^2.8.5"
+  }
+}
