@@ -81,9 +81,23 @@ class FixerService {
       }
     }
 
-    // Fallback: Replace req.params.userID directly if content was unchanged and problematic code references params
-    if (updatedContent === originalContent && cleanProblematic && (cleanProblematic.includes('req.params') || cleanProblematic.includes('userID')) && originalContent.includes('req.params.userID')) {
-      updatedContent = originalContent.replace(/req\.params\.userID/g, 'req.params.id');
+    // Search all workspace files if target file does not contain cleanProblematic
+    if (updatedContent === originalContent && cleanProblematic) {
+      const allJsFiles = this.findAllJsFiles(patchedDir);
+      for (const jsFile of allJsFiles) {
+        if (jsFile === targetFilePath) continue;
+        const fileContent = fs.readFileSync(jsFile, 'utf8').replace(/\r\n/g, '\n');
+        if (fileContent.includes(cleanProblematic) || (cleanProblematic.includes('req.params') && fileContent.includes('req.params.userID'))) {
+          targetFilePath = jsFile;
+          cleanRelativePath = path.relative(patchedDir, jsFile);
+          originalContent = fileContent;
+          updatedContent = fileContent.replace(cleanProblematic, cleanSuggested);
+          if (updatedContent === fileContent && fileContent.includes('req.params.userID')) {
+            updatedContent = fileContent.replace(/req\.params\.userID/g, 'req.params.id');
+          }
+          break;
+        }
+      }
     }
 
     if (updatedContent === originalContent) {
@@ -124,6 +138,26 @@ class FixerService {
     }
 
     return null;
+  }
+
+  /**
+   * Helper to find all JS files in directory recursively
+   */
+  static findAllJsFiles(dir, filesList = []) {
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+
+    for (const entry of entries) {
+      if (entry.name === 'node_modules' || entry.name.startsWith('.')) continue;
+
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        this.findAllJsFiles(fullPath, filesList);
+      } else if (entry.name.endsWith('.js') || entry.name.endsWith('.ts')) {
+        filesList.push(fullPath);
+      }
+    }
+
+    return filesList;
   }
 
   /**
