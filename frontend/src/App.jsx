@@ -99,12 +99,15 @@ export default function App() {
     }
   };
 
+  const [failedEndpoint, setFailedEndpoint] = useState(null);
+
   const handleDiagnose = async (endpointPath) => {
     try {
       setLoading(true);
       setError(null);
       const res = await diagnoseProject(workspaceId, endpointPath);
       setDiagnosis(res.diagnosis);
+      setFailedEndpoint(res.failedEndpoint || null);
       setRelevantFiles(res.relevantFiles || []);
       updateStep(4);
     } catch (err) {
@@ -193,6 +196,8 @@ export default function App() {
           <AiDiagnosisCard
             diagnosis={diagnosis}
             relevantFiles={relevantFiles}
+            failedEndpoint={failedEndpoint}
+            onApplyFix={handleApplyFix}
             onProceedToFix={handleProceedToFix}
             loading={loading}
           />
