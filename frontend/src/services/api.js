@@ -59,11 +59,11 @@ export async function diagnoseProject(workspaceId, endpointPath = null) {
   return data;
 }
 
-export async function applyFix(workspaceId, fix = null) {
+export async function applyFix(workspaceId, fix = null, saveToOriginal = false) {
   const res = await fetch(`${API_BASE}/${workspaceId}/apply-fix`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ fix })
+    body: JSON.stringify({ fix, saveToOriginal })
   });
 
   const data = await res.json();

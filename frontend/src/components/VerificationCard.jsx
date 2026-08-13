@@ -1,7 +1,11 @@
 import React from 'react';
 import { CheckCircle2, XCircle, Sparkles, RefreshCw, ArrowRight, ShieldCheck, Check } from 'lucide-react';
+import { applyFix } from '../services/api';
 
-export default function VerificationCard({ verification, diagnosis, onReset }) {
+export default function VerificationCard({ verification, diagnosis, workspaceId, onReset }) {
+  const [savedToOriginal, setSavedToOriginal] = React.useState(false);
+  const [saving, setSaving] = React.useState(false);
+
   if (!verification) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-12 text-center text-gray-400">
@@ -15,6 +19,18 @@ export default function VerificationCard({ verification, diagnosis, onReset }) {
       </div>
     );
   }
+
+  const handleSaveToOriginal = async () => {
+    try {
+      setSaving(true);
+      await applyFix(workspaceId, diagnosis, true);
+      setSavedToOriginal(true);
+    } catch (e) {
+      alert('Failed to save to original project files');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const isSuccess = Boolean(verification.verified);
   const beforeStatus = verification.before?.status || 500;
@@ -95,7 +111,7 @@ export default function VerificationCard({ verification, diagnosis, onReset }) {
           </div>
           <div className="flex items-center gap-2 text-xs text-emerald-400 font-medium">
             <Check className="w-4 h-4 text-emerald-400 shrink-0" />
-            <span>Automated HTTP request replay ({verification.endpoint})</span>
+            <span>Automated HTTP request replay ({endpoint})</span>
           </div>
           <div className="flex items-center gap-2 text-xs text-emerald-400 font-medium">
             <Check className="w-4 h-4 text-emerald-400 shrink-0" />
@@ -103,12 +119,27 @@ export default function VerificationCard({ verification, diagnosis, onReset }) {
           </div>
           <div className="flex items-center gap-2 text-xs text-emerald-400 font-medium">
             <ShieldCheck className="w-4 h-4 text-cyan-400 shrink-0" />
-            <span>Original project directory preserved 100% unchanged</span>
+            <span>Isolated workspace verified safely</span>
           </div>
         </div>
 
         {/* Action Controls */}
-        <div className="mt-8 flex justify-center gap-4">
+        <div className="mt-8 flex flex-wrap justify-center gap-3">
+          {isSuccess && workspaceId && (
+            <button
+              disabled={savedToOriginal || saving}
+              onClick={handleSaveToOriginal}
+              className={`px-5 py-3 rounded-xl font-bold text-sm flex items-center gap-2 transition ${
+                savedToOriginal
+                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 cursor-default'
+                  : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-lg shadow-emerald-500/20'
+              }`}
+            >
+              <ShieldCheck className="w-4 h-4" />
+              {savedToOriginal ? '✓ Saved to Original Project Files' : saving ? 'Saving...' : '💾 Save Fix to Project Files'}
+            </button>
+          )}
+
           <button
             onClick={onReset}
             className="px-6 py-3 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-sm flex items-center gap-2 shadow-lg shadow-cyan-500/20 transition"

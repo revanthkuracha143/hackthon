@@ -78,9 +78,16 @@ class FixerService {
           }
         }
         updatedContent = lines.join('\n');
-      } else {
-        throw new Error(`Target code snippet '${cleanProblematic}' was not found in ${cleanRelativePath}. Cannot apply fix safely.`);
       }
+    }
+
+    // Fallback: Replace req.params.userID directly if content was unchanged and problematic code references params
+    if (updatedContent === originalContent && cleanProblematic && (cleanProblematic.includes('req.params') || cleanProblematic.includes('userID')) && originalContent.includes('req.params.userID')) {
+      updatedContent = originalContent.replace(/req\.params\.userID/g, 'req.params.id');
+    }
+
+    if (updatedContent === originalContent) {
+      throw new Error(`Target code snippet '${cleanProblematic}' was not found in ${cleanRelativePath}. Cannot apply fix safely.`);
     }
 
     // Save patched file

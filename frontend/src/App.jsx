@@ -216,6 +216,7 @@ export default function App() {
           <VerificationCard
             verification={verification}
             diagnosis={diagnosis}
+            workspaceId={workspaceId}
             onReset={handleReset}
           />
         )}

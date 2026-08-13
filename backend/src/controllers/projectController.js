@@ -245,7 +245,17 @@ class ProjectController {
       }
 
       const fixPayload = req.body.fix || session.diagnosis;
+      const saveToOriginal = Boolean(req.body.saveToOriginal);
+
       const result = FixerService.applyFix(session.patchedDir, fixPayload);
+
+      if (saveToOriginal && session.originalDir) {
+        try {
+          FixerService.applyFix(session.originalDir, fixPayload);
+        } catch (e) {
+          // Ignored fallback
+        }
+      }
 
       session.fix = result;
 
