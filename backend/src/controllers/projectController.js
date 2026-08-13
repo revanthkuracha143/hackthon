@@ -283,13 +283,31 @@ class ProjectController {
       serverInstance = await ProcessManager.startServer(session.patchedDir, analysis.entryPoint);
       if (!serverInstance.isReady) {
         serverInstance.stop();
+        const fallbackVerification = {
+          verified: false,
+          endpoint: failedEndpoint.endpoint,
+          method: failedEndpoint.method,
+          before: {
+            status: failedEndpoint.status,
+            result: failedEndpoint.result,
+            error: failedEndpoint.errorDetails ? failedEndpoint.errorDetails.message : 'Error'
+          },
+          after: {
+            status: 500,
+            result: 'FAILED',
+            responseTimeMs: 0,
+            responseBody: { error: 'Patched server failed to start' }
+          }
+        };
+
+        session.verification = fallbackVerification;
+
         return res.json({
-          success: false,
+          success: true,
           workspaceId: id,
           verified: false,
           message: 'Patched server failed to start',
-          before: { status: failedEndpoint.status, result: 'FAILED' },
-          after: { status: 500, result: 'FAILED' }
+          verification: fallbackVerification
         });
       }
 

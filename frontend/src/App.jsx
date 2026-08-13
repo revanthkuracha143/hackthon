@@ -20,6 +20,7 @@ import {
 
 export default function App() {
   const [step, setStep] = useState(1);
+  const [maxReachedStep, setMaxReachedStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -31,8 +32,14 @@ export default function App() {
   const [fixResult, setFixResult] = useState(null);
   const [verification, setVerification] = useState(null);
 
+  const updateStep = (newStep) => {
+    setStep(newStep);
+    setMaxReachedStep(prev => Math.max(prev, newStep));
+  };
+
   const handleReset = () => {
     setStep(1);
+    setMaxReachedStep(1);
     setLoading(false);
     setError(null);
     setWorkspaceId(null);
@@ -53,7 +60,7 @@ export default function App() {
       
       const analysisRes = await analyzeProject(res.workspaceId);
       setAnalysis(analysisRes.analysis);
-      setStep(2);
+      updateStep(2);
     } catch (err) {
       setError(err.message || 'Failed to upload project');
     } finally {
@@ -70,7 +77,7 @@ export default function App() {
 
       const analysisRes = await analyzeProject(res.workspaceId);
       setAnalysis(analysisRes.analysis);
-      setStep(2);
+      updateStep(2);
     } catch (err) {
       setError(err.message || 'Failed to load demo project');
     } finally {
@@ -84,7 +91,7 @@ export default function App() {
       setError(null);
       const res = await testProject(workspaceId);
       setTestResults(res);
-      setStep(3);
+      updateStep(3);
     } catch (err) {
       setError(err.message || 'Failed to execute API tests');
     } finally {
@@ -99,7 +106,7 @@ export default function App() {
       const res = await diagnoseProject(workspaceId, endpointPath);
       setDiagnosis(res.diagnosis);
       setRelevantFiles(res.relevantFiles || []);
-      setStep(4);
+      updateStep(4);
     } catch (err) {
       setError(err.message || 'AI Diagnosis failed');
     } finally {
@@ -108,7 +115,7 @@ export default function App() {
   };
 
   const handleProceedToFix = () => {
-    setStep(5);
+    updateStep(5);
   };
 
   const handleApplyFix = async () => {
@@ -118,11 +125,21 @@ export default function App() {
       const patchRes = await applyFix(workspaceId, diagnosis);
       setFixResult(patchRes);
 
-      const verifyRes = await verifyFix(workspaceId);
-      setVerification(verifyRes.verification);
-      setStep(6);
+      try {
+        const verifyRes = await verifyFix(workspaceId);
+        setVerification(verifyRes.verification || verifyRes);
+      } catch (vErr) {
+        setVerification({
+          verified: false,
+          endpoint: diagnosis?.file || '/api',
+          method: 'POST',
+          before: { status: 500, result: 'FAILED', error: 'Pre-patch failure' },
+          after: { status: 500, result: 'FAILED', responseTimeMs: 0 }
+        });
+      }
+      updateStep(6);
     } catch (err) {
-      setError(err.message || 'Failed to apply code fix and verify');
+      setError(err.message || 'Failed to apply code fix');
     } finally {
       setLoading(false);
     }
@@ -131,7 +148,11 @@ export default function App() {
   return (
     <div className="min-h-screen flex flex-col bg-[#090d16] text-gray-100 font-sans">
       <Header onReset={handleReset} currentStep={step} />
-      <WorkflowStepper currentStep={step} />
+      <WorkflowStepper
+        currentStep={step}
+        maxReachedStep={maxReachedStep}
+        onSelectStep={(targetStep) => setStep(targetStep)}
+      />
 
       <main className="flex-1 pb-16">
         {/* Global Error Alert */}

@@ -2,9 +2,27 @@ import React from 'react';
 import { CheckCircle2, XCircle, Sparkles, RefreshCw, ArrowRight, ShieldCheck, Check } from 'lucide-react';
 
 export default function VerificationCard({ verification, diagnosis, onReset }) {
-  if (!verification) return null;
+  if (!verification) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-12 text-center text-gray-400">
+        <p className="text-sm">No verification data available yet.</p>
+        <button
+          onClick={onReset}
+          className="mt-4 px-6 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs transition"
+        >
+          Start Over
+        </button>
+      </div>
+    );
+  }
 
-  const isSuccess = verification.verified;
+  const isSuccess = Boolean(verification.verified);
+  const beforeStatus = verification.before?.status || 500;
+  const beforeError = verification.before?.error || 'Internal Server Error';
+  const afterStatus = verification.after?.status || (isSuccess ? 200 : 500);
+  const afterTime = verification.after?.responseTimeMs || 0;
+  const method = verification.method || 'GET';
+  const endpoint = verification.endpoint || '/api';
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-4 space-y-6">
@@ -39,13 +57,13 @@ export default function VerificationCard({ verification, diagnosis, onReset }) {
               BEFORE PATCH
             </div>
             <div className="font-mono text-xs text-gray-300">
-              {verification.method} {verification.endpoint}
+              {method} {endpoint}
             </div>
             <div className="mt-2 text-2xl font-black text-rose-400 font-mono flex items-center gap-2">
-              {verification.before.status} ❌
+              {beforeStatus} ❌
             </div>
             <div className="text-[11px] text-rose-300 mt-1 truncate">
-              {verification.before.error}
+              {beforeError}
             </div>
           </div>
 
@@ -55,13 +73,13 @@ export default function VerificationCard({ verification, diagnosis, onReset }) {
               AFTER PATCH
             </div>
             <div className="font-mono text-xs text-gray-300">
-              {verification.method} {verification.endpoint}
+              {method} {endpoint}
             </div>
             <div className="mt-2 text-2xl font-black text-emerald-400 font-mono flex items-center gap-2">
-              {verification.after.status} ✅
+              {afterStatus} {isSuccess ? '✅' : '❌'}
             </div>
             <div className="text-[11px] text-emerald-300 mt-1">
-              Response Time: {verification.after.responseTimeMs}ms
+              Response Time: {afterTime}ms
             </div>
           </div>
         </div>
