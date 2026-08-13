@@ -28,13 +28,31 @@ class AiService {
   }
 
   /**
-   * Gemini API Provider implementation via HTTPS REST
+   * Gemini API Provider implementation via HTTPS REST with candidate model fallback
    */
-  static diagnoseWithGemini(errorContext, apiKey) {
-    return new Promise((resolve, reject) => {
-      const model = process.env.AI_MODEL || 'gemini-3.6-flash';
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  static async diagnoseWithGemini(errorContext, apiKey) {
+    const primaryModel = process.env.AI_MODEL || 'gemini-3.6-flash';
+    const candidateModels = Array.from(new Set([primaryModel, 'gemini-flash-latest', 'gemini-2.5-flash']));
 
+    let lastError = null;
+
+    for (const model of candidateModels) {
+      try {
+        const result = await this.callSingleGeminiModel(model, errorContext, apiKey);
+        return result;
+      } catch (err) {
+        lastError = err;
+        console.warn(`[GEMINI API WARN] Model ${model} call failed: ${err.message}. Retrying with next model candidate...`);
+        await new Promise(r => setTimeout(r, 400));
+      }
+    }
+
+    throw lastError || new Error('All Gemini candidate models failed.');
+  }
+
+  static callSingleGeminiModel(model, errorContext, apiKey) {
+    return new Promise((resolve, reject) => {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
       const prompt = this.buildPrompt(errorContext);
 
       const requestBody = JSON.stringify({
@@ -63,12 +81,15 @@ class AiService {
         res.on('data', chunk => rawData += chunk);
         res.on('end', () => {
           try {
+            if (res.statusCode !== 200) {
+              return reject(new Error(`HTTP ${res.statusCode}: ${rawData.substring(0, 200)}`));
+            }
             const jsonRes = JSON.parse(rawData);
             const parts = jsonRes.candidates?.[0]?.content?.parts || [];
             const textPart = parts.find(p => p.text);
             const textResponse = textPart ? textPart.text : null;
             if (!textResponse) {
-              return reject(new Error(`Empty text response from Gemini API. Raw: ${rawData.substring(0, 200)}`));
+              return reject(new Error(`Empty text response from Gemini API model ${model}`));
             }
             const parsed = this.parseAndValidateJson(textResponse);
             resolve(parsed);
@@ -79,7 +100,7 @@ class AiService {
       });
 
       req.on('error', reject);
-      req.on('timeout', () => req.destroy(new Error('Gemini API request timed out')));
+      req.on('timeout', () => req.destroy(new Error(`Gemini API model ${model} request timed out`)));
       req.write(requestBody);
       req.end();
     });
