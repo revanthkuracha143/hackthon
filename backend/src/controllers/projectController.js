@@ -337,6 +337,9 @@ class ProjectController {
       serverInstance = await ProcessManager.startServer(session.patchedDir, analysis.entryPoint);
       if (!serverInstance.isReady) {
         serverInstance.stop();
+        const startupStderr = serverInstance.startupError || serverInstance.errors.join('\n') || serverInstance.logs.join('\n') || 'Process exited prematurely before listening.';
+        const firstLine = startupStderr.split('\n').filter(Boolean)[0] || 'Patched server failed to start.';
+
         const fallbackVerification = {
           verified: false,
           endpoint: failedEndpoint.endpoint,
@@ -350,7 +353,9 @@ class ProjectController {
             status: 500,
             result: 'FAILED',
             responseTimeMs: 0,
-            responseBody: { error: 'Patched server failed to start' }
+            error: `Server startup failed: ${firstLine}`,
+            startupError: startupStderr,
+            responseBody: { error: 'Patched server failed to start', message: firstLine, stderr: startupStderr }
           }
         };
 
@@ -360,7 +365,7 @@ class ProjectController {
           success: true,
           workspaceId: id,
           verified: false,
-          message: 'Patched server failed to start',
+          message: `Patched server failed to start: ${firstLine}`,
           verification: fallbackVerification
         });
       }

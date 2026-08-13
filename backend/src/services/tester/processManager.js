@@ -1,3 +1,4 @@
+const fs = require('fs');
 const { spawn } = require('child_process');
 const http = require('http');
 const net = require('net');
@@ -53,6 +54,27 @@ class ProcessManager {
     };
 
     const scriptPath = path.join(projectDir, entryPoint);
+
+    // 1. Validate JavaScript syntax before spawning server process
+    const { spawnSync } = require('child_process');
+    if (fs.existsSync(scriptPath)) {
+      const check = spawnSync('node', ['--check', scriptPath], { cwd: projectDir, env });
+      if (check.status !== 0) {
+        const syntaxErr = (check.stderr ? check.stderr.toString() : '') || (check.stdout ? check.stdout.toString() : '') || `Syntax error detected in ${entryPoint}`;
+        errors.push(syntaxErr);
+        return {
+          port: assignedPort,
+          child: null,
+          logs: [],
+          errors,
+          isReady: false,
+          startupError: syntaxErr,
+          stop: () => {}
+        };
+      }
+    }
+
+    // 2. Spawn Node API server process
     const child = spawn('node', [scriptPath], {
       cwd: projectDir,
       env,
@@ -69,6 +91,16 @@ class ProcessManager {
       errors.push(text);
     });
 
+    child.on('error', (err) => {
+      errors.push(`Child Process Spawn Error: ${err.message}`);
+    });
+
+    child.on('exit', (code, signal) => {
+      if (code !== null && code !== 0) {
+        errors.push(`Process exited prematurely with code ${code}${signal ? ` (Signal: ${signal})` : ''}`);
+      }
+    });
+
     let isTerminated = false;
     const cleanupProcess = () => {
       if (!isTerminated && child && !child.killed) {
@@ -82,6 +114,7 @@ class ProcessManager {
 
     // Wait until server is listening on assigned port or a fallback port extracted from logs
     const readyResult = await this.waitForServerReady(assignedPort, child, logs, errors, timeoutMs);
+    const startupStderr = errors.join('\n') || logs.join('\n') || (readyResult.isReady ? '' : 'API Server startup timed out before listening.');
 
     return {
       port: readyResult.activePort || assignedPort,
@@ -89,6 +122,7 @@ class ProcessManager {
       logs,
       errors,
       isReady: readyResult.isReady,
+      startupError: startupStderr,
       stop: cleanupProcess
     };
   }

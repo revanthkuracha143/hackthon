@@ -100,6 +100,19 @@ export default function VerificationCard({ verification, diagnosis, workspaceId,
           </div>
         </div>
 
+        {/* Startup Exception Log Box if verification fails */}
+        {!isSuccess && (verification.after?.startupError || verification.after?.error) && (
+          <div className="max-w-2xl mx-auto mt-6 bg-rose-950/40 p-4 rounded-xl border border-rose-500/40 text-left font-mono text-xs space-y-2">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-rose-400 flex items-center justify-between">
+              <span>Node.js Server Startup Exception Log</span>
+              <span className="text-[10px] text-rose-300 font-normal">Diagnostic Output</span>
+            </div>
+            <pre className="p-3 bg-[#090d16] text-rose-200 rounded-lg border border-gray-800 overflow-x-auto whitespace-pre-wrap max-h-60 font-mono text-[11px]">
+              {verification.after?.startupError || verification.after?.error}
+            </pre>
+          </div>
+        )}
+
         {/* Automated Verification Checklist */}
         <div className="max-w-md mx-auto mt-6 bg-[#090d16]/80 p-4 rounded-xl border border-gray-800 text-left space-y-2">
           <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
