@@ -64,9 +64,11 @@ class AiService {
         res.on('end', () => {
           try {
             const jsonRes = JSON.parse(rawData);
-            const textResponse = jsonRes.candidates?.[0]?.content?.parts?.[0]?.text;
+            const parts = jsonRes.candidates?.[0]?.content?.parts || [];
+            const textPart = parts.find(p => p.text);
+            const textResponse = textPart ? textPart.text : null;
             if (!textResponse) {
-              return reject(new Error('Empty text response from Gemini API'));
+              return reject(new Error(`Empty text response from Gemini API. Raw: ${rawData.substring(0, 200)}`));
             }
             const parsed = this.parseAndValidateJson(textResponse);
             resolve(parsed);
